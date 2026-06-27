@@ -1,0 +1,12 @@
+.file_row {
+    @apply flex items-center gap-3 cursor-pointer text-sm no-underline border-b border-white/5 px-4;
+    @apply sm:px-6 hover:bg-white/5;
+
+    & > .details {
+        @apply flex flex-1 items-center text-neutral-200 no-underline py-2.5 overflow-hidden truncate;
+
+        &:not(a) {
+            @apply cursor-default;
+        }
+    }
+}

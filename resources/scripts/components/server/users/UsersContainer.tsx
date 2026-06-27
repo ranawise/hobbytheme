@@ -1,0 +1,81 @@
+import React, { useEffect, useState } from 'react';
+import { ServerContext } from '@/state/server';
+import { Actions, useStoreActions, useStoreState } from 'easy-peasy';
+import { ApplicationStore } from '@/state';
+import Spinner from '@/components/elements/Spinner';
+import AddSubuserButton from '@/components/server/users/AddSubuserButton';
+import UserRow from '@/components/server/users/UserRow';
+import FlashMessageRender from '@/components/FlashMessageRender';
+import getServerSubusers from '@/api/server/users/getServerSubusers';
+import { httpErrorToHuman } from '@/api/http';
+import Can from '@/components/elements/Can';
+import ServerContentBlock from '@/components/elements/ServerContentBlock';
+import tw from 'twin.macro';
+
+import BeforeContent from '@blueprint/components/Server/Users/BeforeContent';
+import AfterContent from '@blueprint/components/Server/Users/AfterContent';
+
+export default () => {
+    const [loading, setLoading] = useState(true);
+
+    const uuid = ServerContext.useStoreState((state) => state.server.data!.uuid);
+    const subusers = ServerContext.useStoreState((state) => state.subusers.data);
+    const setSubusers = ServerContext.useStoreActions((actions) => actions.subusers.setSubusers);
+
+    const permissions = useStoreState((state: ApplicationStore) => state.permissions.data);
+    const getPermissions = useStoreActions((actions: Actions<ApplicationStore>) => actions.permissions.getPermissions);
+    const { addError, clearFlashes } = useStoreActions((actions: Actions<ApplicationStore>) => actions.flashes);
+
+    useEffect(() => {
+        clearFlashes('users');
+        getServerSubusers(uuid)
+            .then((subusers) => {
+                setSubusers(subusers);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error(error);
+                addError({ key: 'users', message: httpErrorToHuman(error) });
+            });
+    }, []);
+
+    useEffect(() => {
+        getPermissions().catch((error) => {
+            addError({ key: 'users', message: httpErrorToHuman(error) });
+            console.error(error);
+        });
+    }, []);
+
+    if (!subusers.length && (loading || !Object.keys(permissions).length)) {
+        return <Spinner size={'large'} centered />;
+    }
+
+    return (
+        <ServerContentBlock title={'Users'} compact>
+            <div
+                css={tw`w-full bg-black px-4 sm:px-6 pt-4 pb-8`}
+                style={{ minHeight: 'calc(100vh - var(--server-header-height, 6.25rem))' }}
+            >
+                <FlashMessageRender byKey={'users'} css={tw`mb-4`} />
+                <BeforeContent />
+                {!subusers.length ? (
+                    <p css={tw`text-center text-sm text-neutral-400`}>
+                        It looks like you don&apos;t have any subusers.
+                    </p>
+                ) : (
+                    <div css={tw`flex flex-col gap-2`}>
+                        {subusers.map((subuser) => (
+                            <UserRow key={subuser.uuid} subuser={subuser} />
+                        ))}
+                    </div>
+                )}
+                <Can action={'user.create'}>
+                    <div css={tw`flex justify-end mt-6`}>
+                        <AddSubuserButton />
+                    </div>
+                </Can>
+                <AfterContent />
+            </div>
+        </ServerContentBlock>
+    );
+};
